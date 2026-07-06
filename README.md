@@ -119,6 +119,11 @@ location in the rendered tree. They are not user-provided. Pass
 `{ idPrefix: "..." }` to `renderToReadableStream()` to customize the generated
 name prefix.
 
+Pass `{ nonce: "..." }` to add a CSP nonce to inline scripts generated for
+client reference event handlers. The same nonce is applied to rendered
+`<script nonce={true}>`, `<link nonce={true}>`, and `<style nonce={true}>`
+elements.
+
 ## ErrorBoundary
 
 `<ErrorBoundary>` accepts `fallback` and `children`.
@@ -148,6 +153,9 @@ renderToReadableStream(
   options?,
 ): Promise<ReadableStream<Uint8Array>>
 ```
+
+Options include `encodeClientEvent`, `idPrefix`, `nonce`, `prerender`, and
+`signal`.
 
 ## Development
 

@@ -71,6 +71,7 @@ export interface ClientEvent {
 export interface RenderOptions {
   encodeClientEvent?: (event: ClientEvent) => string;
   idPrefix?: string;
+  nonce?: string;
   prerender?: boolean;
   signal?: AbortSignal;
 }
@@ -257,6 +258,7 @@ class RenderContext {
   constructor(
     readonly encodeEvent: (event: InternalClientEvent) => string,
     private readonly prefix: string,
+    private readonly nonce: string | undefined,
     private readonly signal: AbortSignal,
     private readonly shellReady: PromiseWithResolvers<void>,
     readonly suspenseMode: SuspenseRenderMode,
@@ -317,6 +319,14 @@ class RenderContext {
 
   renderHeadTemplate(html: string) {
     return `<template for="${headMarkerName}">${html}${renderHeadMarker()}</template>`;
+  }
+
+  renderNonceAttribute() {
+    return this.nonce === undefined ? "" : ` nonce="${escapeAttribute(this.nonce)}"`;
+  }
+
+  renderScript(content: string) {
+    return `<script${this.renderNonceAttribute()}>${escapeScriptContent(content)}</script>`;
   }
 
   scheduleTemplate(name: string, children: JSXChild, path: string, parentState: RenderState) {
@@ -501,6 +511,7 @@ export async function renderToReadableStream(
   const context = new RenderContext(
     options.encodeClientEvent ?? defaultEncodeClientEvent,
     options.idPrefix ?? "srv-jsx-",
+    options.nonce,
     abortController.signal,
     shellReady,
     options.prerender === true ? "prerender" : "streaming",
@@ -661,6 +672,16 @@ async function renderElement(
   for (const [name, value] of Object.entries(node.props)) {
     if (isClientEventAttribute(name, value)) {
       clientEvents.push({ event: name.slice(2), reference: value });
+      continue;
+    }
+
+    if (
+      namespace === "html" &&
+      name === "nonce" &&
+      value === true &&
+      isNonceElement(node.tagName)
+    ) {
+      attributes += context.renderNonceAttribute();
       continue;
     }
 
@@ -889,7 +910,7 @@ async function renderClientEventScripts(
   writer: Writer,
 ) {
   for (const event of events) {
-    writer.write(`<script>${escapeScriptContent(context.encodeEvent(event))}</script>`);
+    writer.write(context.renderScript(context.encodeEvent(event)));
   }
 }
 
@@ -1006,6 +1027,10 @@ function isVoidElement(name: string) {
 
 function isHoistableHeadElement(name: string) {
   return hoistableHeadElementNames.includes(` ${name} `);
+}
+
+function isNonceElement(name: string) {
+  return name === "script" || name === "link" || name === "style";
 }
 
 function hasRenderableChildren(value: JSXChild): boolean {

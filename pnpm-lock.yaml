@@ -279,6 +279,9 @@ importers:
       invokers-polyfill:
         specifier: ^1.0.3
         version: 1.0.3
+      isbot:
+        specifier: ^5.1.44
+        version: 5.1.44
       remix:
         specifier: 3.0.0-beta.5
         version: 3.0.0-beta.5(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
@@ -2184,6 +2187,10 @@ packages:
   invokers-polyfill@1.0.3:
     resolution: {integrity: sha512-T8zVavFQu5GlWlpkjghmaCaTx6Wk+9tWwJ2BC4oNsNAnar6AIrvSJQFZUcYDfrxzK9thBIyZvAkeLfdN9hTzGA==}
 
+  isbot@5.1.44:
+    resolution: {integrity: sha512-PGEHtwMnKbZpeSEXW2Utx+/JWed7dp6DiH0WWg33vGSDA7RUvpUeJSVlLrVkQ1RCpvDOUc/eH9ql7VsdbBZ8pA==}
+    engines: {node: '>=18'}
+
   istanbul-lib-coverage@3.2.2:
     resolution: {integrity: sha512-O8dpsF+r0WV/8MNRKfnmrtCWhuKjxrq2w+jpzBL5UZKTi2LeVWnWOmWRxFlesJONmc+wLAGvKQZEOanko0LFTg==}
     engines: {node: '>=8'}
@@ -3927,6 +3934,8 @@ snapshots:
   html-escaper@2.0.2: {}
 
   invokers-polyfill@1.0.3: {}
+
+  isbot@5.1.44: {}
 
   istanbul-lib-coverage@3.2.2: {}
 

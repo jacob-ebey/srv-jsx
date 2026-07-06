@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "invokers-polyfill": "^1.0.3",
+    "isbot": "^5.1.44",
     "remix": "3.0.0-beta.5",
     "srv-jsx": "latest",
     "template-for-polyfill": "~0.1.0"

@@ -187,6 +187,37 @@ test("supports custom client event encoding", async () => {
   expect(html).toBe('<input><script>attach("change", "<\\/script>");</script>');
 });
 
+test("adds nonces to generated client reference event scripts", async () => {
+  const html = await renderToText(
+    <input onchange={clientReference("handleChange", "/assets/input.js")} />,
+    {
+      encodeClientEvent({ event }) {
+        return `attach(${JSON.stringify(event)}, "</script>");`;
+      },
+      nonce: 'nonce"<value>',
+    },
+  );
+
+  expect(html).toBe(
+    '<input><script nonce="nonce&quot;&lt;value&gt;">attach("change", "<\\/script>");</script>',
+  );
+});
+
+test("applies configured nonces to script, link, and style nonce attributes", async () => {
+  const html = await renderToText(
+    <>
+      <script nonce={true} src="/assets/app.js" />
+      <link nonce={true} rel="modulepreload" href="/assets/app.js" />
+      <style nonce={true}>{".hidden{display:none}"}</style>
+    </>,
+    { nonce: 'nonce"<value>' },
+  );
+
+  expect(html).toBe(
+    '<script nonce="nonce&quot;&lt;value&gt;" src="/assets/app.js"></script><link nonce="nonce&quot;&lt;value&gt;" rel="modulepreload" href="/assets/app.js"><style nonce="nonce&quot;&lt;value&gt;">.hidden{display:none}</style>',
+  );
+});
+
 test("rejects client references on non-event attributes", async () => {
   await expect(
     renderToText(
