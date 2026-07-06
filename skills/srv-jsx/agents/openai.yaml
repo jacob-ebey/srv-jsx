@@ -1,0 +1,4 @@
+interface:
+  display_name: "Srv JSX"
+  short_description: "Guide agents for srv-jsx work"
+  default_prompt: "Use $srv-jsx to build or modify a srv-jsx component without React patterns."

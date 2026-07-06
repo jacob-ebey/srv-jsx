@@ -1,0 +1,76 @@
+{
+  "name": "srv-jsx",
+  "version": "0.0.0",
+  "description": "A server-only JSX runtime for native out-of-order HTML streaming.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jacob-ebey/srv-jsx.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./jsx-dev-runtime": "./dist/jsx-dev-runtime.mjs",
+    "./jsx-runtime": "./dist/jsx-runtime.mjs",
+    "./transforms": "./dist/transforms.mjs",
+    "./vite": "./dist/vite.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp dev",
+    "build:demo": "vp build",
+    "watch": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check",
+    "prepublishOnly": "vp run build",
+    "prepare": "vp config"
+  },
+  "dependencies": {
+    "magic-string": "~0.30.21"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.43.0",
+    "@hiogawa/vite-plugin-fullstack": "~0.0.11",
+    "@types/node": "^25.6.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@typescript/native-preview": "7.0.0-dev.20260509.2",
+    "invokers-polyfill": "^1.0.3",
+    "oxfmt": "~0.57.0",
+    "oxlint": "^1.72.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "template-for-polyfill": "~0.1.0",
+    "typescript": "^6.0.3",
+    "vite": "catalog:",
+    "vite-plugin-devtools-json": "^1.0.0",
+    "vite-plus": "catalog:",
+    "wrangler": "^4.107.0"
+  },
+  "peerDependencies": {
+    "vite": "*"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.10.0",
+      "onFail": "download"
+    }
+  },
+  "inlinedDependencies": {
+    "@oxc-project/types": "0.138.0",
+    "@voidzero-dev/vite-plus-core": "0.2.2"
+  }
+}

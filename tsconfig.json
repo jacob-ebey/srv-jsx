@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["DOM", "ES2024"],
+    "moduleDetection": "force",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "srv-jsx",
+    "resolveJsonModule": true,
+    "paths": {
+      "srv-jsx": ["./src/index.ts"],
+      "srv-jsx/jsx-dev-runtime": ["./src/jsx-dev-runtime.ts"],
+      "srv-jsx/jsx-runtime": ["./src/jsx-runtime.ts"],
+      "srv-jsx/transforms": ["./src/transforms.ts"],
+      "srv-jsx/vite": ["./src/vite.ts"]
+    },
+    "types": ["@hiogawa/vite-plugin-fullstack/types", "node", "vite-plus/client"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "declaration": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "allowArbitraryExtensions": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  }
+}

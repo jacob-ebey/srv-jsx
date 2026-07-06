@@ -1,0 +1,18 @@
+{
+  "name": "srv-jsx-vite-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "srv-jsx": "latest"
+  },
+  "devDependencies": {
+    "@hiogawa/vite-plugin-fullstack": "~0.0.11",
+    "typescript": "latest",
+    "vite": "latest"
+  }
+}
