@@ -1,7 +1,7 @@
 import { createAction } from "remix/fetch-router";
 
-import { Document } from "../components/document.tsx";
-import { routes } from "../routes.ts";
+import { Document } from "@/components/document.tsx";
+import { routes } from "@/routes.ts";
 
 export default createAction(routes.home, ({ render }) => {
   return render(

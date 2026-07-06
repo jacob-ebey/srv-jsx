@@ -1,4 +1,4 @@
-import type { JSXChild } from "srv-jsx/jsx-runtime";
+import { ErrorBoundary, type JSXChild } from "srv-jsx";
 
 import "./document.css";
 
@@ -21,7 +21,17 @@ export function Document({ children }: { children?: JSXChild }) {
           <link nonce rel="modulepreload" href={asset.href} />
         ))}
       </head>
-      <body>{children}</body>
+      <body>
+        <ErrorBoundary
+          fallback={
+            <main>
+              <h1>Oops, something went wrong</h1>
+            </main>
+          }
+        >
+          {children}
+        </ErrorBoundary>
+      </body>
     </html>
   );
 }
