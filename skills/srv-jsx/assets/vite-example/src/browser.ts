@@ -1,5 +1,3 @@
-import "./client.css";
-
 function areProcessingDirectivesSupported() {
   const el = document.createElement("div");
   el.innerHTML = "<?marker name=a><?start name=b><?end>";

@@ -1,6 +1,11 @@
 import { renderToReadableStream, Suspense, type JSXChild } from "srv-jsx";
 
+import "./global.css";
+
+import serverAssets from "./server.tsx?assets=ssr";
 import browserAssets from "./browser.ts?assets=client";
+
+const assets = serverAssets.merge(browserAssets);
 
 export default {
   fetch(): Promise<Response> {
@@ -11,11 +16,14 @@ export default {
           <button
             onclick={(event) => {
               "use client";
-              const button = event.currentTarget as HTMLButtonElement;
-              button.textContent = button.textContent === "Clicked" ? "Click me" : "Clicked";
+              event.preventDefault();
+              const self = event.currentTarget as HTMLButtonElement;
+              const span = self.querySelector("span") as HTMLSpanElement;
+              const count = parseInt(span.textContent);
+              span.textContent = (count + 1).toString();
             }}
           >
-            Click me
+              Count <span>0</span>
           </button>
           <Suspense fallback={<p>Loading...</p>}>
             <Message />
@@ -41,11 +49,11 @@ function Document({ children }: { children?: JSXChild }) {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>srv-jsx + Vite</title>
-        {browserAssets.css.map((asset) => (
+        {assets.css.map((asset) => (
           <link rel="stylesheet" href={asset.href} />
         ))}
-        {browserAssets.entry ? <script async type="module" src={browserAssets.entry} /> : null}
-        {browserAssets.js.map((asset) => (
+        {assets.entry ? <script async type="module" src={assets.entry} /> : null}
+        {assets.js.map((asset) => (
           <link rel="modulepreload" href={asset.href} />
         ))}
       </head>
