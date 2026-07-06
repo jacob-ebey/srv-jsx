@@ -498,6 +498,68 @@ test("ErrorBoundary catches rejected async work inside a Suspense template", asy
   );
 });
 
+test("throws shell errors from renderToReadableStream without calling onError", async () => {
+  const error = new Error("boom");
+  const errors: unknown[] = [];
+  let streamCreated = false;
+
+  await expect(
+    renderToReadableStream(<div>{Promise.reject(error)}</div>, {
+      onError(error) {
+        errors.push(error);
+      },
+    }).then((stream) => {
+      streamCreated = true;
+      return stream;
+    }),
+  ).rejects.toBe(error);
+
+  expect(streamCreated).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("calls onError for unhandled errors after the shell", async () => {
+  const deferred = createDeferred<JSXChild>();
+  const error = new Error("boom");
+  const errors: unknown[] = [];
+  const stream = await renderToReadableStream(
+    <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
+    {
+      onError(error) {
+        errors.push(error);
+      },
+    },
+  );
+
+  deferred.reject(error);
+
+  await expect(readToEnd(stream.getReader())).resolves.toBe(
+    '<?start name="srv-jsx-ezw52n"><p>loading</p><?end>',
+  );
+  expect(errors).toEqual([error]);
+});
+
+test("calls onError for handled errors after the shell", async () => {
+  const deferred = createDeferred<JSXChild>();
+  const error = new Error("boom");
+  const errors: unknown[] = [];
+  const stream = await renderToReadableStream(
+    <ErrorBoundary fallback={<p>oops</p>}>
+      <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>
+    </ErrorBoundary>,
+    {
+      onError(error) {
+        errors.push(error);
+      },
+    },
+  );
+
+  deferred.reject(error);
+
+  await expect(readToEnd(stream.getReader())).resolves.toContain("<p>oops</p>");
+  expect(errors).toEqual([error]);
+});
+
 test("unhandled Suspense errors close the stream without a template", async () => {
   const deferred = createDeferred<JSXChild>();
   const stream = await renderToReadableStream(
@@ -514,14 +576,60 @@ test("unhandled Suspense errors close the stream without a template", async () =
 test("unhandled Suspense errors reject prerender", async () => {
   const deferred = createDeferred<JSXChild>();
   const error = new Error("boom");
+  const errors: unknown[] = [];
+  let streamCreated = false;
   const streamPromise = renderToReadableStream(
     <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
-    { prerender: true },
-  );
+    {
+      onError(error) {
+        errors.push(error);
+      },
+      prerender: true,
+    },
+  ).then((stream) => {
+    streamCreated = true;
+    return stream;
+  });
 
   deferred.reject(error);
 
   await expect(streamPromise).rejects.toBe(error);
+  expect(streamCreated).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("prerender calls onError for errors caught by an ErrorBoundary", async () => {
+  const deferred = createDeferred<JSXChild>();
+  const error = new Error("boom");
+  const errors: unknown[] = [];
+  const streamPromise = renderToReadableStream(
+    <ErrorBoundary fallback={<p>oops</p>}>
+      <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>
+    </ErrorBoundary>,
+    {
+      onError(error) {
+        errors.push(error);
+      },
+      prerender: true,
+    },
+  );
+  let resolved = false;
+
+  void streamPromise.then(() => {
+    resolved = true;
+  });
+  await settleMicrotasks();
+
+  expect(resolved).toBe(false);
+
+  deferred.reject(error);
+
+  const stream = await streamPromise;
+
+  await expect(readToEnd(stream.getReader())).resolves.toBe(
+    '<?start name="srv-jsx-ezw52n"><?end><template for="srv-jsx-ezw52n"><p>oops</p></template>',
+  );
+  expect(errors).toEqual([error]);
 });
 
 test("AbortSignal aborts rendering while waiting for async children", async () => {

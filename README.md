@@ -154,8 +154,12 @@ renderToReadableStream(
 ): Promise<ReadableStream<Uint8Array>>
 ```
 
-Options include `encodeClientEvent`, `idPrefix`, `nonce`, `prerender`, and
-`signal`.
+Options include `encodeClientEvent`, `idPrefix`, `nonce`, `onError`,
+`prerender`, and `signal`. `onError(error)` is called for errors that happen
+after the shell has been flushed, and for errors that are caught by an
+`ErrorBoundary`. Unhandled errors while building the shell, including unhandled
+`prerender` errors, reject `renderToReadableStream()` before a stream is
+created.
 
 ## Development
 

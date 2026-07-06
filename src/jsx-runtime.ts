@@ -72,6 +72,7 @@ export interface RenderOptions {
   encodeClientEvent?: (event: ClientEvent) => string;
   idPrefix?: string;
   nonce?: string;
+  onError?: (error: unknown) => void;
   prerender?: boolean;
   signal?: AbortSignal;
 }
@@ -259,6 +260,7 @@ class RenderContext {
     readonly encodeEvent: (event: InternalClientEvent) => string,
     private readonly prefix: string,
     private readonly nonce: string | undefined,
+    private readonly onError: ((error: unknown) => void) | undefined,
     private readonly signal: AbortSignal,
     private readonly shellReady: PromiseWithResolvers<void>,
     readonly suspenseMode: SuspenseRenderMode,
@@ -310,6 +312,10 @@ class RenderContext {
     return this.flushedHead;
   }
 
+  hasShellReady() {
+    return this.shellDone;
+  }
+
   flushHead(state: RenderState) {
     this.flushedHead = true;
     const html = `${state.head.chunks.join("")}${renderHeadMarker()}`;
@@ -327,6 +333,18 @@ class RenderContext {
 
   renderScript(content: string) {
     return `<script${this.renderNonceAttribute()}>${escapeScriptContent(content)}</script>`;
+  }
+
+  reportError(error: unknown) {
+    if (this.onError === undefined || this.isAbortError(error)) {
+      return;
+    }
+
+    try {
+      this.onError(error);
+    } catch {
+      // Logging failures should not affect rendering.
+    }
   }
 
   scheduleTemplate(name: string, children: JSXChild, path: string, parentState: RenderState) {
@@ -512,6 +530,7 @@ export async function renderToReadableStream(
     options.encodeClientEvent ?? defaultEncodeClientEvent,
     options.idPrefix ?? "srv-jsx-",
     options.nonce,
+    options.onError,
     abortController.signal,
     shellReady,
     options.prerender === true ? "prerender" : "streaming",
@@ -525,7 +544,11 @@ export async function renderToReadableStream(
       context.markShellReady();
       await drainPending(context, queue);
     } catch (error) {
-      context.rejectShellReady(error);
+      if (context.hasShellReady()) {
+        context.reportError(error);
+      } else {
+        context.rejectShellReady(error);
+      }
     } finally {
       queue.close();
       unlinkSignal();
@@ -581,7 +604,9 @@ async function drainPending(context: RenderContext, writer: Writer) {
         throw result.error;
       }
 
-      writer.write(await renderErrorFallbackTemplate(result.task.handler, context));
+      const fallbackHtml = await renderErrorFallbackTemplate(result.task.handler, context);
+      context.reportError(result.error);
+      writer.write(fallbackHtml);
       writer.flush?.();
       continue;
     }
@@ -764,7 +789,9 @@ async function renderErrorBoundary(
       }
 
       writer.write("<?end>");
-      writer.write(await renderErrorFallbackTemplate(handler, context));
+      const fallbackHtml = await renderErrorFallbackTemplate(handler, context);
+      context.reportError(error);
+      writer.write(fallbackHtml);
     }
   });
 }
