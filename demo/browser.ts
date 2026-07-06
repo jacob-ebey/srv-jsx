@@ -1,3 +1,9 @@
+function areProcessingDirectivesSupported() {
+  const el = document.createElement("div");
+  el.innerHTML = "<?marker name=a><?start name=b><?end>";
+  return Array.from(el.childNodes).every((n) => n.nodeType === 7);
+}
+
 function areInvokerCommandsSupported() {
   return (
     typeof HTMLButtonElement !== "undefined" &&
@@ -6,20 +12,14 @@ function areInvokerCommandsSupported() {
   );
 }
 
-function areProcessingDirectivesSupported() {
-  const el = document.createElement("div");
-  el.innerHTML = "<?marker name=a><?start name=b><?end>";
-  return Array.from(el.childNodes).every((n) => n.nodeType === 7);
-}
-
 function installPolyfills() {
-  if (!areInvokerCommandsSupported()) {
-    void import("invokers-polyfill").catch(console.error.bind(console));
-  }
-
   if (!areProcessingDirectivesSupported()) {
     // @ts-expect-error - no types
     void import("template-for-polyfill").catch(console.error.bind(console));
+  }
+
+  if (!areInvokerCommandsSupported()) {
+    void import("invokers-polyfill").catch(console.error.bind(console));
   }
 }
 

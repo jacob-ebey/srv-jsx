@@ -1,9 +1,10 @@
 import fullstack from "@hiogawa/vite-plugin-fullstack";
-import { defineConfig } from "vite";
 import srvJsx from "srv-jsx/vite";
+import { defineConfig } from "vite-plus";
+import devtoolsJson from "vite-plugin-devtools-json";
 
 export default defineConfig({
-  plugins: [fullstack(), srvJsx()],
+  plugins: [fullstack(), srvJsx(), devtoolsJson()],
   environments: {
     client: {
       build: {

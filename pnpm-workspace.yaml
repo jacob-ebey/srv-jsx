@@ -1,3 +1,6 @@
+packages:
+  - ./
+  - ./skills/srv-jsx/assets/vite-example
 allowBuilds:
   esbuild: false
   sharp: false
@@ -7,6 +10,7 @@ catalog:
   vitest: 4.1.9
   vite-plus: latest
 overrides:
+  srv-jsx: "workspace:"
   vite: "catalog:"
   vitest: "catalog:"
 peerDependencyRules:
