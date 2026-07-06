@@ -276,6 +276,9 @@ importers:
 
   skills/srv-jsx/assets/vite-example:
     dependencies:
+      invokers-polyfill:
+        specifier: ^1.0.3
+        version: 1.0.3
       remix:
         specifier: 3.0.0-beta.5
         version: 3.0.0-beta.5(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
