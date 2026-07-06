@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "vp build --app",
     "start": "node server.ts"
   },
   "dependencies": {

@@ -25,7 +25,7 @@
   "scripts": {
     "build": "vp pack",
     "dev": "vp dev",
-    "build:demo": "vp build",
+    "build:demo": "vp build --app",
     "watch": "vp pack --watch",
     "test": "vp test",
     "check": "vp check",
