@@ -213,7 +213,7 @@ test("streams Suspense placeholders and templates", async () => {
   );
   const reader = stream.getReader();
 
-  await expect(readUntilLength(reader, suspenseShell.length)).resolves.toBe(suspenseShell);
+  await expect(readChunk(reader)).resolves.toBe(suspenseShell);
 
   deferred.resolve(<p>Hello, World!</p>);
 
@@ -242,6 +242,32 @@ test("waits for the shell before resolving the stream", async () => {
   await expect(readToEnd(stream.getReader())).resolves.toBe("<div><p>ready</p></div>");
 });
 
+test("waits for the entire shell before resolving the stream", async () => {
+  const deferred = createDeferred<JSXChild>();
+  let renderedAfterSuspense = false;
+  const stream = await renderToReadableStream(
+    <>
+      <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>
+      <AfterSuspense />
+    </>,
+  );
+  const shell = '<?start name="srv-jsx-vxhwgy"><p>loading</p><?end><p>after</p>';
+  const reader = stream.getReader();
+
+  expect(renderedAfterSuspense).toBe(true);
+  await expect(readChunk(reader)).resolves.toBe(shell);
+
+  deferred.resolve(<p>inside</p>);
+  await expect(readToEnd(reader)).resolves.toBe(
+    '<template for="srv-jsx-vxhwgy"><p>inside</p></template>',
+  );
+
+  function AfterSuspense(): JSXChild {
+    renderedAfterSuspense = true;
+    return <p>after</p>;
+  }
+});
+
 test("waits for async work before the first Suspense boundary", async () => {
   const before = createDeferred<JSXChild>();
   const inside = createDeferred<JSXChild>();
@@ -264,55 +290,70 @@ test("waits for async work before the first Suspense boundary", async () => {
 
   const stream = await streamPromise;
   const shell = '<p>before</p><?start name="srv-jsx-zubyhh"><p>loading</p><?end>';
+  const reader = stream.getReader();
 
   expect(resolved).toBe(true);
-  await expect(readUntilLength(stream.getReader(), shell.length)).resolves.toBe(shell);
+  await expect(readUntilLength(reader, shell.length)).resolves.toBe(shell);
 
   inside.resolve(<p>inside</p>);
-  await stream.allReady;
+  await expect(readToEnd(reader)).resolves.toBe(
+    '<template for="srv-jsx-zubyhh"><p>inside</p></template>',
+  );
 });
 
-test("does not wait for async work after the first Suspense boundary", async () => {
+test("waits for async work after the first Suspense boundary before resolving the shell", async () => {
   const inside = createDeferred<JSXChild>();
   const after = createDeferred<JSXChild>();
-  const stream = await renderToReadableStream(
+  const streamPromise = renderToReadableStream(
     <>
       <Suspense fallback={<p>loading</p>}>{inside.promise}</Suspense>
       {after.promise}
     </>,
   );
-  const reader = stream.getReader();
-  const shell = '<?start name="srv-jsx-vxhwgy"><p>loading</p><?end>';
+  let resolved = false;
 
-  await expect(readUntilLength(reader, shell.length)).resolves.toBe(shell);
-
-  after.resolve(<p>after</p>);
-  inside.resolve(<p>inside</p>);
-
-  await stream.allReady;
-  await expect(readToEnd(reader)).resolves.toBe(
-    '<p>after</p><template for="srv-jsx-vxhwgy"><p>inside</p></template>',
-  );
-});
-
-test("allReady renders Suspense children inline", async () => {
-  const deferred = createDeferred<JSXChild>();
-  const stream = await renderToReadableStream(
-    <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
-  );
-  let allReady = false;
-
-  void stream.allReady.then(() => {
-    allReady = true;
+  void streamPromise.then(() => {
+    resolved = true;
   });
   await settleMicrotasks();
 
-  expect(allReady).toBe(false);
+  expect(resolved).toBe(false);
+
+  after.resolve(<p>after</p>);
+
+  const stream = await streamPromise;
+  const reader = stream.getReader();
+  const shell = '<?start name="srv-jsx-vxhwgy"><p>loading</p><?end><p>after</p>';
+
+  expect(resolved).toBe(true);
+  await expect(readChunk(reader)).resolves.toBe(shell);
+
+  inside.resolve(<p>inside</p>);
+
+  await expect(readToEnd(reader)).resolves.toBe(
+    '<template for="srv-jsx-vxhwgy"><p>inside</p></template>',
+  );
+});
+
+test("prerender renders Suspense children inline", async () => {
+  const deferred = createDeferred<JSXChild>();
+  const streamPromise = renderToReadableStream(
+    <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
+    { prerender: true },
+  );
+  let resolved = false;
+
+  void streamPromise.then(() => {
+    resolved = true;
+  });
+  await settleMicrotasks();
+
+  expect(resolved).toBe(false);
 
   deferred.resolve(<p>ready</p>);
-  await stream.allReady;
+  const stream = await streamPromise;
 
-  expect(allReady).toBe(true);
+  expect(resolved).toBe(true);
   await expect(readToEnd(stream.getReader())).resolves.toBe("<p>ready</p>");
 });
 
@@ -426,17 +467,30 @@ test("ErrorBoundary catches rejected async work inside a Suspense template", asy
   );
 });
 
-test("unhandled Suspense errors reject allReady and close the stream without fallback", async () => {
+test("unhandled Suspense errors close the stream without a template", async () => {
   const deferred = createDeferred<JSXChild>();
-  const error = new Error("boom");
   const stream = await renderToReadableStream(
     <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
   );
 
+  deferred.reject(new Error("boom"));
+
+  await expect(readToEnd(stream.getReader())).resolves.toBe(
+    '<?start name="srv-jsx-ezw52n"><p>loading</p><?end>',
+  );
+});
+
+test("unhandled Suspense errors reject prerender", async () => {
+  const deferred = createDeferred<JSXChild>();
+  const error = new Error("boom");
+  const streamPromise = renderToReadableStream(
+    <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
+    { prerender: true },
+  );
+
   deferred.reject(error);
 
-  await expect(stream.allReady).rejects.toBe(error);
-  await expect(readToEnd(stream.getReader())).resolves.toBe("");
+  await expect(streamPromise).rejects.toBe(error);
 });
 
 test("AbortSignal aborts rendering while waiting for async children", async () => {
@@ -450,7 +504,7 @@ test("AbortSignal aborts rendering while waiting for async children", async () =
   await expect(streamPromise).rejects.toBe(reason);
 });
 
-test("AbortSignal rejects allReady and closes the stream without fallback before streaming", async () => {
+test("AbortSignal closes the stream without a template", async () => {
   const controller = new AbortController();
   const deferred = createDeferred<JSXChild>();
   const reason = new Error("stop rendering");
@@ -461,8 +515,9 @@ test("AbortSignal rejects allReady and closes the stream without fallback before
 
   controller.abort(reason);
 
-  await expect(stream.allReady).rejects.toBe(reason);
-  await expect(readToEnd(stream.getReader())).resolves.toBe("");
+  await expect(readToEnd(stream.getReader())).resolves.toBe(
+    '<?start name="srv-jsx-ezw52n"><p>loading</p><?end>',
+  );
 });
 
 test("canceling the stream stops pending rendering work", async () => {
@@ -488,21 +543,29 @@ test("canceling the stream stops pending rendering work", async () => {
   }
 });
 
-test("allReady chooses full rendering before the stream is consumed", async () => {
+test("prerender waits for Suspense before resolving the stream", async () => {
   const deferred = createDeferred<JSXChild>();
-  const stream = await renderToReadableStream(
-    <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>,
+  const streamPromise = renderToReadableStream(
+    <div>
+      <Suspense fallback={<p>loading</p>}>{deferred.promise}</Suspense>
+      <p>after</p>
+    </div>,
+    { prerender: true },
   );
-  let allReady = false;
+  let resolved = false;
 
-  void stream.allReady.then(() => {
-    allReady = true;
+  void streamPromise.then(() => {
+    resolved = true;
   });
-  deferred.resolve(<p>ready</p>);
-  await stream.allReady;
+  await settleMicrotasks();
 
-  expect(allReady).toBe(true);
-  await expect(readToEnd(stream.getReader())).resolves.toBe("<p>ready</p>");
+  expect(resolved).toBe(false);
+
+  deferred.resolve(<p>ready</p>);
+  const stream = await streamPromise;
+
+  expect(resolved).toBe(true);
+  await expect(readChunk(stream.getReader())).resolves.toBe("<div><p>ready</p><p>after</p></div>");
 });
 
 test("drains many Suspense templates in completion order", async () => {
@@ -593,6 +656,16 @@ async function readUntilIncludes(reader: ReadableStreamDefaultReader<Uint8Array>
   }
 
   return html;
+}
+
+async function readChunk(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  const { done, value } = await reader.read();
+
+  if (done) {
+    return "";
+  }
+
+  return new TextDecoder().decode(value);
 }
 
 async function readToEnd(reader: ReadableStreamDefaultReader<Uint8Array>) {

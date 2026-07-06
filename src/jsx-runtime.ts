@@ -71,12 +71,11 @@ export interface ClientEvent {
 export interface RenderOptions {
   encodeClientEvent?: (event: ClientEvent) => string;
   idPrefix?: string;
+  prerender?: boolean;
   signal?: AbortSignal;
 }
 
-export type RenderReadableStream = ReadableStream<Uint8Array> & {
-  allReady: Promise<void>;
-};
+export type RenderReadableStream = ReadableStream<Uint8Array>;
 
 type ClientReferenceDefinition = {
   readonly bound?: readonly unknown[];
@@ -168,7 +167,7 @@ interface HeadScope {
 }
 
 type RenderNamespace = "html" | "svg";
-type RenderMode = "allReady" | "streaming";
+type SuspenseRenderMode = "prerender" | "streaming";
 
 interface RenderState {
   deferHead: boolean;
@@ -179,6 +178,7 @@ interface RenderState {
 }
 
 class ChunkQueue implements Writer {
+  private buffer = "";
   private readonly chunks: string[] = [];
   private closed = false;
   private waiter: PromiseWithResolvers<void> | undefined;
@@ -213,6 +213,13 @@ class ChunkQueue implements Writer {
   }
 
   flush() {
+    if (this.buffer.length > 0 && !this.closed) {
+      this.chunks.push(this.buffer);
+      this.buffer = "";
+      this.resolveWaiter();
+      return;
+    }
+
     this.resolveWaiter();
   }
 
@@ -221,8 +228,7 @@ class ChunkQueue implements Writer {
       return;
     }
 
-    this.chunks.push(chunk);
-    this.resolveWaiter();
+    this.buffer += chunk;
   }
 
   private resolveWaiter() {
@@ -234,28 +240,6 @@ class ChunkQueue implements Writer {
 
     this.waiter = undefined;
     waiter.resolve();
-  }
-}
-
-class RenderModeController {
-  private readonly ready = Promise.withResolvers<RenderMode>();
-  private mode: RenderMode | undefined;
-
-  async wait() {
-    if (this.mode !== undefined) {
-      return this.mode;
-    }
-
-    return this.ready.promise;
-  }
-
-  choose(mode: RenderMode) {
-    if (this.mode !== undefined) {
-      return;
-    }
-
-    this.mode = mode;
-    this.ready.resolve(mode);
   }
 }
 
@@ -275,7 +259,7 @@ class RenderContext {
     private readonly prefix: string,
     private readonly signal: AbortSignal,
     private readonly shellReady: PromiseWithResolvers<void>,
-    private readonly mode: RenderModeController,
+    readonly suspenseMode: SuspenseRenderMode,
   ) {
     let rejectAbortPromise!: (error: unknown) => void;
     this.aborted = new Promise<never>((_resolve, reject) => {
@@ -388,11 +372,6 @@ class RenderContext {
   async waitFor<T>(value: PromiseLike<T>) {
     this.throwIfAborted();
     return Promise.race([value, this.aborted]);
-  }
-
-  async waitForSuspenseMode() {
-    this.markShellReady();
-    return Promise.race([this.mode.wait(), this.aborted]);
   }
 
   async withErrorHandler<T>(handler: ErrorHandler, run: () => Promise<T>): Promise<T> {
@@ -519,15 +498,12 @@ export async function renderToReadableStream(
   const unlinkSignal = linkAbortSignal(options.signal, abortController);
   const shellReady = Promise.withResolvers<void>();
   shellReady.promise.catch(() => {});
-  const allReady = Promise.withResolvers<void>();
-  allReady.promise.catch(() => {});
-  const renderMode = new RenderModeController();
   const context = new RenderContext(
     options.encodeClientEvent ?? defaultEncodeClientEvent,
     options.idPrefix ?? "srv-jsx-",
     abortController.signal,
     shellReady,
-    renderMode,
+    options.prerender === true ? "prerender" : "streaming",
   );
   const queue = new ChunkQueue();
 
@@ -537,10 +513,8 @@ export async function renderToReadableStream(
       queue.flush();
       context.markShellReady();
       await drainPending(context, queue);
-      allReady.resolve();
     } catch (error) {
       context.rejectShellReady(error);
-      allReady.reject(error);
     } finally {
       queue.close();
       unlinkSignal();
@@ -555,8 +529,6 @@ export async function renderToReadableStream(
   const stream = new ReadableStream<Uint8Array>(
     {
       async pull(controller) {
-        renderMode.choose("streaming");
-
         const next = await queue.next();
 
         if (canceled) {
@@ -565,6 +537,7 @@ export async function renderToReadableStream(
 
         if (next.done) {
           controller.close();
+          unlinkSignal();
           return;
         }
 
@@ -577,11 +550,8 @@ export async function renderToReadableStream(
       },
     },
     { highWaterMark: 0 },
-  ) as RenderReadableStream;
+  );
 
-  stream.allReady = createObservedPromise(allReady.promise, () => {
-    renderMode.choose("allReady");
-  });
   return stream;
 }
 
@@ -634,7 +604,6 @@ async function renderValue(
   }
 
   if (isPromiseLike(value)) {
-    writer.flush?.();
     const resolvedValue = await context.waitFor(value);
     await renderValue(resolvedValue as JSXChild, context, writer, path, state);
     return;
@@ -795,9 +764,7 @@ async function renderSuspense(
   path: string,
   state: RenderState,
 ) {
-  const mode = await context.waitForSuspenseMode();
-
-  if (mode === "allReady") {
+  if (context.suspenseMode === "prerender") {
     await renderValue(node.children, context, writer, `${path}-0`, state);
     return;
   }
@@ -807,7 +774,6 @@ async function renderSuspense(
   writer.write(`<?start name="${escapeAttribute(name)}">`);
   await renderValue(node.fallback, context, writer, `${path}-f`, state);
   writer.write("<?end>");
-  writer.flush?.();
 }
 
 async function renderToBufferedString(
@@ -1121,30 +1087,6 @@ function linkAbortSignal(signal: AbortSignal | undefined, controller: AbortContr
 
   return () => {
     signal.removeEventListener("abort", abort);
-  };
-}
-
-function createObservedPromise<T>(promise: Promise<T>, observe: () => void): Promise<T> {
-  return {
-    catch<TResult = never>(
-      onrejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null,
-    ) {
-      observe();
-      return promise.catch(onrejected);
-    },
-    finally(onfinally?: (() => void) | null) {
-      observe();
-      return promise.finally(onfinally);
-    },
-    // oxlint-disable-next-line unicorn/no-thenable -- allReady must observe await/then to choose render mode.
-    then<TResult1 = T, TResult2 = never>(
-      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
-      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-    ) {
-      observe();
-      return promise.then(onfulfilled, onrejected);
-    },
-    [Symbol.toStringTag]: "Promise",
   };
 }
 

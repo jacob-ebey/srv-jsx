@@ -56,12 +56,11 @@ return new Response(body, {
 });
 ```
 
-The returned stream also has an `allReady` promise for JSX render completion. If
-you await `allReady` before reading the body, srv-jsx renders Suspense children
-inline without fallback placeholders or replacement templates. If the body is
-read first, srv-jsx streams fallback placeholders and templates. `allReady` rejects
-if pending rendering aborts or hits an unhandled error; the body stream closes
-without error in those cases.
+`renderToReadableStream()` resolves after the shell has been buffered, so the
+first body chunk contains fallback placeholders for pending Suspense boundaries.
+Pending Suspense children are emitted later as replacement templates. Pass
+`{ prerender: true }` to render Suspense children inline without fallback
+placeholders or replacement templates.
 
 The first chunk contains the shell:
 
@@ -147,7 +146,7 @@ wrapped region with the fallback if rendering fails.
 renderToReadableStream(
   value,
   options?,
-): Promise<ReadableStream<Uint8Array> & { allReady: Promise<void> }>
+): Promise<ReadableStream<Uint8Array>>
 ```
 
 ## Development
