@@ -1,0 +1,13 @@
+{
+  "extends": ["@tsconfig/vite-react/tsconfig.json"],
+  "compilerOptions": {
+    "lib": ["DOM", "ES2024"],
+    "types": ["@hiogawa/vite-plugin-fullstack/types", "vite/client"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "srv-jsx",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

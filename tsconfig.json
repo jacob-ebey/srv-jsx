@@ -23,7 +23,6 @@
     "allowImportingTsExtensions": true,
     "allowArbitraryExtensions": true,
     "esModuleInterop": true,
-    "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   }

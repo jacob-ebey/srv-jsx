@@ -1,5 +1,5 @@
-declare const handler: {
-  fetch(request: Request): Promise<Response>;
-};
+import { type Router } from "remix/fetch-router";
 
-export default handler;
+declare const router: Router;
+
+export default router;

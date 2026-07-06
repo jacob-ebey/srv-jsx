@@ -19,7 +19,7 @@ export default defineConfig({
         emitAssets: true,
         outDir: "dist/ssr",
         rolldownOptions: {
-          input: "./src/server.tsx",
+          input: "./src/router.ts",
         },
       },
     },
