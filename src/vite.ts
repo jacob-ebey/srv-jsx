@@ -27,7 +27,7 @@ type BuildState = {
   clientBuildStart?: Promise<void>;
 };
 
-export default function srvJsx(options?: Options) {
+export default function srvJsx(options?: Options): Plugin {
   const clientEnvironment = options?.clientEnvironment ?? "client";
   const serverEnvironments = new Set(options?.serverEnvironments ?? ["ssr"]);
   const clientReferences = new Map<string, ClientReference>();
@@ -97,6 +97,7 @@ export default function srvJsx(options?: Options) {
       return {
         ...inputOptions,
         input: addClientInputs(inputOptions.input, directiveFiles) as typeof inputOptions.input,
+        preserveEntrySignatures: "exports-only",
       };
     },
     async generateBundle(_outputOptions, bundle) {
@@ -155,7 +156,7 @@ export default function srvJsx(options?: Options) {
 
       return null;
     },
-  } satisfies Plugin;
+  };
 }
 
 function buildEnvironmentsServerFirst(
