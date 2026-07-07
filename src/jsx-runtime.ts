@@ -937,7 +937,9 @@ async function renderClientEventScripts(
   writer: Writer,
 ) {
   for (const event of events) {
-    writer.write(context.renderScript(context.encodeEvent(event)));
+    writer.write(
+      context.renderScript(context.encodeEvent(event) + "document.currentScript.remove();"),
+    );
   }
 }
 
@@ -1210,7 +1212,7 @@ function defaultEncodeClientEvent({ event, reference }: InternalClientEvent) {
     event,
   )},mod[${JSON.stringify(reference.name)}].bind(null,...${JSON.stringify(
     reference.bound ?? [],
-  )})));document.currentScript?.remove();})();`;
+  )})));})();`;
 }
 
 function renderHeadMarker() {
