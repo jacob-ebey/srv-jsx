@@ -1,6 +1,6 @@
 {
   "name": "srv-jsx",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A server-only JSX runtime for native out-of-order HTML streaming.",
   "license": "MIT",
   "repository": {
