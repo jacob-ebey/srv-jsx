@@ -41,25 +41,27 @@ function Home() {
             if (target.hasAttribute("data-loading")) return;
 
             target.setAttribute("data-loading", "");
+            button.textContent = "Loading...";
             fetch(routes.partial.href())
-              .then((res) => {
-                if (!res.ok) throw new Error("Bad response");
-                return res.text();
-              })
-              .then((html) => {
-                target.setHTMLUnsafe(html);
+              .then(async (res) => {
+                if (!res.ok || !res.body) throw new Error("Bad response");
+                const stream = target.streamHTMLUnsafe({ runScripts: true });
+                await res.body.pipeThrough(new TextDecoderStream()).pipeTo(stream);
               })
               .catch(() => {
                 target.innerHTML = "<p>Failed to load</p>";
               })
               .finally(() => {
                 target.removeAttribute("data-loading");
+                button.textContent = "Load Partial";
               });
           }}
         >
           Load Partial
         </button>
-        <div></div>
+        <div>
+          <p>No content.</p>
+        </div>
       </main>
     </>
   );

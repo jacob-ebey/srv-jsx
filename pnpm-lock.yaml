@@ -276,6 +276,9 @@ importers:
 
   skills/srv-jsx/assets/vite-example:
     dependencies:
+      html-setters-polyfill:
+        specifier: ^0.1.1
+        version: 0.1.1
       invokers-polyfill:
         specifier: ^1.0.3
         version: 1.0.3
@@ -2184,6 +2187,9 @@ packages:
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
 
+  html-setters-polyfill@0.1.1:
+    resolution: {integrity: sha512-QrjA33MKyCukhMr1QP0K6EbktTQ4hLgOJZM99Dx3SPNoBq+cR2+jFHFHCvuUf6ol7xMk/s42t6tsRbgxojcQ1g==}
+
   invokers-polyfill@1.0.3:
     resolution: {integrity: sha512-T8zVavFQu5GlWlpkjghmaCaTx6Wk+9tWwJ2BC4oNsNAnar6AIrvSJQFZUcYDfrxzK9thBIyZvAkeLfdN9hTzGA==}
 
@@ -3932,6 +3938,8 @@ snapshots:
   has-flag@4.0.0: {}
 
   html-escaper@2.0.2: {}
+
+  html-setters-polyfill@0.1.1: {}
 
   invokers-polyfill@1.0.3: {}
 

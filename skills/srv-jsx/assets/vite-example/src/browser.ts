@@ -1,3 +1,7 @@
+function isStreamHTMLUnsafeSupported() {
+  return typeof (document.body as any).streamHTMLUnsafe === "function";
+}
+
 function areProcessingDirectivesSupported() {
   const el = document.createElement("div");
   el.innerHTML = "<?marker name=a><?start name=b><?end>";
@@ -20,6 +24,10 @@ function installPolyfills() {
 
   if (!areInvokerCommandsSupported()) {
     void import("invokers-polyfill").catch(console.error.bind(console));
+  }
+
+  if (!isStreamHTMLUnsafeSupported()) {
+    void import("html-setters-polyfill").catch(console.error.bind(console));
   }
 }
 
