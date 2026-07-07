@@ -69,7 +69,7 @@ export interface ClientEvent {
 }
 
 export interface RenderOptions {
-  encodeClientEvent?: (event: ClientEvent) => string;
+  encodeLoadReference?: (reference: ClientReference) => string;
   idPrefix?: string;
   nonce?: string;
   onError?: (error: unknown) => void;
@@ -257,7 +257,7 @@ class RenderContext {
   private readonly handlers: ErrorHandler[] = [];
 
   constructor(
-    readonly encodeEvent: (event: InternalClientEvent) => string,
+    readonly encodeLoadReference: (reference: ClientReference) => string,
     private readonly prefix: string,
     private readonly nonce: string | undefined,
     private readonly onError: ((error: unknown) => void) | undefined,
@@ -527,7 +527,7 @@ export async function renderToReadableStream(
   const shellReady = Promise.withResolvers<void>();
   shellReady.promise.catch(() => {});
   const context = new RenderContext(
-    options.encodeClientEvent ?? defaultEncodeClientEvent,
+    options.encodeLoadReference ?? defaultEncodeLoadReference,
     options.idPrefix ?? "srv-jsx-",
     options.nonce,
     options.onError,
@@ -938,7 +938,11 @@ async function renderClientEventScripts(
 ) {
   for (const event of events) {
     writer.write(
-      context.renderScript(context.encodeEvent(event) + "document.currentScript.remove();"),
+      context.renderScript(
+        `(() => {let e = document.currentScript.previousElementSibling;(${context.encodeLoadReference(
+          event.reference,
+        )})((r) => e.addEventListener(${JSON.stringify(event.event)}, r))})();document.currentScript.remove();`,
+      ),
     );
   }
 }
@@ -1205,14 +1209,19 @@ function escapeScriptContent(value: string) {
   return value.replaceAll(/<\/script/gi, "<\\/script");
 }
 
-function defaultEncodeClientEvent({ event, reference }: InternalClientEvent) {
-  return `(() => {let el=document.currentScript?.previousSibling;import(${JSON.stringify(
-    reference.mod,
-  )}).then((mod)=>el?.addEventListener(${JSON.stringify(
-    event,
-  )},mod[${JSON.stringify(reference.name)}].bind(null,...${JSON.stringify(
-    reference.bound ?? [],
-  )})));})();`;
+function defaultEncodeLoadReference(reference: ClientReference) {
+  return [
+    "(c)=>",
+    `import(${JSON.stringify(reference.mod)})`,
+    `.then(m=>c(m[${JSON.stringify(reference.name)}]))`,
+  ].join("");
+  // return `(() => {let el=document.currentScript?.previousSibling;import(${JSON.stringify(
+  //   reference.mod,
+  // )}).then((mod)=>el?.addEventListener(${JSON.stringify(
+  //   event,
+  // )},mod[${JSON.stringify(reference.name)}].bind(null,...${JSON.stringify(
+  //   reference.bound ?? [],
+  // )})));})();`;
 }
 
 function renderHeadMarker() {
