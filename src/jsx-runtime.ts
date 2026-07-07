@@ -97,10 +97,16 @@ interface ClientReference {
   readonly type: typeof clientReferenceType;
 }
 
-interface InternalClientEvent {
-  readonly event: string;
-  readonly reference: ClientReference;
-}
+type InternalClientEffect =
+  | {
+      readonly event: string;
+      readonly kind: "event";
+      readonly reference: ClientReference;
+    }
+  | {
+      readonly kind: "ref";
+      readonly reference: ClientReference;
+    };
 
 interface ComponentNode {
   readonly [nodeMarker]: true;
@@ -692,11 +698,16 @@ async function renderElement(
   }
 
   let attributes = "";
-  const clientEvents: InternalClientEvent[] = [];
+  const clientEffects: InternalClientEffect[] = [];
 
   for (const [name, value] of Object.entries(node.props)) {
+    if (isClientRefAttribute(name, value)) {
+      clientEffects.push({ kind: "ref", reference: value });
+      continue;
+    }
+
     if (isClientEventAttribute(name, value)) {
-      clientEvents.push({ event: name.slice(2), reference: value });
+      clientEffects.push({ event: name.slice(2), kind: "event", reference: value });
       continue;
     }
 
@@ -726,7 +737,7 @@ async function renderElement(
     }
 
     writer.write(`<${node.tagName}${attributes}>`);
-    await renderClientEventScripts(clientEvents, context, writer);
+    await renderClientEffectScripts(clientEffects, context, writer);
     return;
   }
 
@@ -746,7 +757,7 @@ async function renderElement(
       writer.write(context.flushHead(state));
     }
     writer.write(`</${node.tagName}>`);
-    await renderClientEventScripts(clientEvents, context, writer);
+    await renderClientEffectScripts(clientEffects, context, writer);
     return;
   }
 
@@ -761,7 +772,7 @@ async function renderElement(
     writer.write(context.flushHead(state));
   }
   writer.write(`</${node.tagName}>`);
-  await renderClientEventScripts(clientEvents, context, writer);
+  await renderClientEffectScripts(clientEffects, context, writer);
 }
 
 async function renderErrorBoundary(
@@ -931,20 +942,28 @@ function createStringWriter(): BufferedWriter {
   };
 }
 
-async function renderClientEventScripts(
-  events: readonly InternalClientEvent[],
+async function renderClientEffectScripts(
+  effects: readonly InternalClientEffect[],
   context: RenderContext,
   writer: Writer,
 ) {
-  for (const event of events) {
+  for (const effect of effects) {
     writer.write(
       context.renderScript(
         `(() => {let e = document.currentScript.previousElementSibling;(${context.encodeLoadReference(
-          event.reference,
-        )})((r) => e.addEventListener(${JSON.stringify(event.event)}, r))})();document.currentScript.remove();`,
+          effect.reference,
+        )})(${renderClientEffectCallback(effect)})})();document.currentScript.remove();`,
       ),
     );
   }
+}
+
+function renderClientEffectCallback(effect: InternalClientEffect) {
+  if (effect.kind === "ref") {
+    return "(r) => r(e)";
+  }
+
+  return `(r) => e.addEventListener(${JSON.stringify(effect.event)}, r)`;
 }
 
 function createSuspenseNode(props: SuspenseProps): JSXElement {
@@ -979,7 +998,7 @@ function renderAttribute(name: string, value: unknown, namespace: RenderNamespac
 
   if (isClientReference(value)) {
     throw new TypeError(
-      `Attribute "${attributeName}" received a client reference. Client references can only be passed to event attributes.`,
+      `Attribute "${attributeName}" received a client reference. Client references can only be passed to event or ref attributes.`,
     );
   }
 
@@ -1080,6 +1099,10 @@ function hasRenderableChildren(value: JSXChild): boolean {
 
 function isClientEventAttribute(name: string, value: unknown): value is ClientReference {
   return name.startsWith("on") && name.length > 2 && isClientReference(value);
+}
+
+function isClientRefAttribute(name: string, value: unknown): value is ClientReference {
+  return name === "ref" && isClientReference(value);
 }
 
 function isClientReference(value: unknown): value is ClientReference {
@@ -1213,15 +1236,10 @@ function defaultEncodeLoadReference(reference: ClientReference) {
   return [
     "(c)=>",
     `import(${JSON.stringify(reference.mod)})`,
-    `.then(m=>c(m[${JSON.stringify(reference.name)}]))`,
+    `.then(m=>c(m[${JSON.stringify(reference.name)}].bind(null,...${JSON.stringify(
+      reference.bound ?? [],
+    )})))`,
   ].join("");
-  // return `(() => {let el=document.currentScript?.previousSibling;import(${JSON.stringify(
-  //   reference.mod,
-  // )}).then((mod)=>el?.addEventListener(${JSON.stringify(
-  //   event,
-  // )},mod[${JSON.stringify(reference.name)}].bind(null,...${JSON.stringify(
-  //   reference.bound ?? [],
-  // )})));})();`;
 }
 
 function renderHeadMarker() {

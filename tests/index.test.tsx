@@ -145,7 +145,7 @@ test("renders client reference event scripts after elements", async () => {
   );
 
   expect(html).toBe(
-    `<button>Click</button><script>(() => {let el=document.currentScript?.previousSibling;import("/assets/button.js").then((mod)=>el?.addEventListener("click",mod["handleClick"].bind(null,...[])));document.currentScript?.remove();})();</script>`,
+    `<button>Click</button><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>import("/assets/button.js").then(m=>c(m["handleClick"].bind(null,...[]))))((r) => e.addEventListener("click", r))})();document.currentScript.remove();</script>`,
   );
 });
 
@@ -159,7 +159,7 @@ test("renders client reference event scripts with bind captures", async () => {
   );
 
   expect(html).toBe(
-    `<button>Click</button><script>(() => {let el=document.currentScript?.previousSibling;import("/assets/button.js").then((mod)=>el?.addEventListener("click",mod["handleClick"].bind(null,...["/current/path",123,true])));document.currentScript?.remove();})();</script>`,
+    `<button>Click</button><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>import("/assets/button.js").then(m=>c(m["handleClick"].bind(null,...["/current/path",123,true]))))((r) => e.addEventListener("click", r))})();document.currentScript.remove();</script>`,
   );
 });
 
@@ -170,36 +170,58 @@ test("renders client reference event scripts with chained binds", async () => {
   const html = await renderToText(<button onclick={reference}>Click</button>);
 
   expect(html).toBe(
-    `<button>Click</button><script>(() => {let el=document.currentScript?.previousSibling;import("/assets/button.js").then((mod)=>el?.addEventListener("click",mod["handleClick"].bind(null,...["first","second"])));document.currentScript?.remove();})();</script>`,
+    `<button>Click</button><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>import("/assets/button.js").then(m=>c(m["handleClick"].bind(null,...["first","second"]))))((r) => e.addEventListener("click", r))})();document.currentScript.remove();</script>`,
   );
 });
 
-test("supports custom client event encoding", async () => {
+test("renders client reference ref scripts after elements", async () => {
+  const html = await renderToText(
+    <section ref={clientReference("mount", "/assets/section.js")}>Content</section>,
+  );
+
+  expect(html).toBe(
+    `<section>Content</section><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>import("/assets/section.js").then(m=>c(m["mount"].bind(null,...[]))))((r) => r(e))})();document.currentScript.remove();</script>`,
+  );
+});
+
+test("renders client reference ref scripts with bind captures", async () => {
+  const html = await renderToText(
+    <section ref={clientReference("mount", "/assets/section.js", ["first", 2])}>Content</section>,
+  );
+
+  expect(html).toBe(
+    `<section>Content</section><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>import("/assets/section.js").then(m=>c(m["mount"].bind(null,...["first",2]))))((r) => r(e))})();document.currentScript.remove();</script>`,
+  );
+});
+
+test("supports custom client reference loading", async () => {
   const html = await renderToText(
     <input onchange={clientReference("handleChange", "/assets/input.js")} />,
     {
-      encodeClientEvent({ event }) {
-        return `attach(${JSON.stringify(event)}, "</script>");`;
+      encodeLoadReference({ name }) {
+        return `(c)=>c(() => attach(${JSON.stringify(name)}, "</script>"))`;
       },
     },
   );
 
-  expect(html).toBe('<input><script>attach("change", "<\\/script>");</script>');
+  expect(html).toBe(
+    '<input><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>c(() => attach("handleChange", "<\\/script>")))((r) => e.addEventListener("change", r))})();document.currentScript.remove();</script>',
+  );
 });
 
 test("adds nonces to generated client reference event scripts", async () => {
   const html = await renderToText(
     <input onchange={clientReference("handleChange", "/assets/input.js")} />,
     {
-      encodeClientEvent({ event }) {
-        return `attach(${JSON.stringify(event)}, "</script>");`;
+      encodeLoadReference({ name }) {
+        return `(c)=>c(() => attach(${JSON.stringify(name)}, "</script>"))`;
       },
       nonce: 'nonce"<value>',
     },
   );
 
   expect(html).toBe(
-    '<input><script nonce="nonce&quot;&lt;value&gt;">attach("change", "<\\/script>");</script>',
+    '<input><script nonce="nonce&quot;&lt;value&gt;">(() => {let e = document.currentScript.previousElementSibling;((c)=>c(() => attach("handleChange", "<\\/script>")))((r) => e.addEventListener("change", r))})();document.currentScript.remove();</script>',
   );
 });
 
@@ -223,7 +245,7 @@ test("rejects client references on non-event attributes", async () => {
     renderToText(
       <div data-action={clientReference("action", "/assets/action.js") as unknown as string} />,
     ),
-  ).rejects.toThrow("Client references can only be passed to event attributes");
+  ).rejects.toThrow("Client references can only be passed to event or ref attributes");
 });
 
 test("rejects innerHTML mixed with children", async () => {

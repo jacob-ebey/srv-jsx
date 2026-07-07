@@ -120,9 +120,12 @@ location in the rendered tree. They are not user-provided. Pass
 name prefix.
 
 Pass `{ nonce: "..." }` to add a CSP nonce to inline scripts generated for
-client reference event handlers. The same nonce is applied to rendered
+client reference event handlers and refs. The same nonce is applied to rendered
 `<script nonce={true}>`, `<link nonce={true}>`, and `<style nonce={true}>`
 elements.
+
+DOM elements can receive a client reference as `ref`. The runtime emits an
+inline script after the element and calls the loaded reference with that element.
 
 ## ErrorBoundary
 
@@ -154,7 +157,7 @@ renderToReadableStream(
 ): Promise<ReadableStream<Uint8Array>>
 ```
 
-Options include `encodeClientEvent`, `idPrefix`, `nonce`, `onError`,
+Options include `encodeLoadReference`, `idPrefix`, `nonce`, `onError`,
 `prerender`, and `signal`. `onError(error)` is called for errors that happen
 after the shell has been flushed, and for errors that are caught by an
 `ErrorBoundary`. Unhandled errors while building the shell, including unhandled
