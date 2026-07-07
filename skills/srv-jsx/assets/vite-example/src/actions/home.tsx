@@ -28,11 +28,38 @@ function Home() {
             span.textContent = (count + 1).toString();
           }}
         >
-            Count <span>0</span>
+          Count <span>0</span>
         </button>
         <Suspense fallback={<p>Loading...</p>}>
           <Message />
         </Suspense>
+        <button
+          onclick={(event) => {
+            "use client";
+            const button = event.currentTarget as HTMLButtonElement;
+            const target = button.nextElementSibling as HTMLDivElement;
+            if (target.hasAttribute("data-loading")) return;
+
+            target.setAttribute("data-loading", "");
+            fetch(routes.partial.href())
+              .then((res) => {
+                if (!res.ok) throw new Error("Bad response");
+                return res.text();
+              })
+              .then((html) => {
+                target.setHTMLUnsafe(html);
+              })
+              .catch(() => {
+                target.innerHTML = "<p>Failed to load</p>";
+              })
+              .finally(() => {
+                target.removeAttribute("data-loading");
+              });
+          }}
+        >
+          Load Partial
+        </button>
+        <div></div>
       </main>
     </>
   );
