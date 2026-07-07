@@ -5,7 +5,7 @@ import {
   defineClientReference,
   renderToReadableStream,
 } from "../src/index.ts";
-import type { JSXChild, RenderOptions } from "../src/index.ts";
+import type { ClientReferenceValue, JSXChild, RenderOptions } from "../src/index.ts";
 
 test("renders escaped elements and raw innerHTML", async () => {
   const html = await renderToText(
@@ -192,6 +192,27 @@ test("renders client reference ref scripts with bind captures", async () => {
   expect(html).toBe(
     `<section>Content</section><script>(() => {let e = document.currentScript.previousElementSibling;((c)=>import("/assets/section.js").then(m=>c(m["mount"].bind(null,...["first",2]))))((r) => r(e))})();document.currentScript.remove();</script>`,
   );
+});
+
+test("types ref callbacks by intrinsic element", () => {
+  const canvas = (
+    <canvas
+      ref={(ref) => {
+        "use client";
+        ref.getContext("2d");
+      }}
+    />
+  );
+  const customElement = (
+    <custom-element
+      ref={(ref) => {
+        "use client";
+        ref.getAttribute("data-id");
+      }}
+    />
+  );
+
+  expect([canvas, customElement]).toBeTruthy();
 });
 
 test("supports custom client reference loading", async () => {
@@ -769,22 +790,18 @@ async function renderToText(value: JSXChild, options?: RenderOptions) {
   return readToEnd(stream.getReader());
 }
 
-interface TestClientReference extends EventListener {
-  bind(_this: unknown, ...bound: readonly unknown[]): TestClientReference;
-}
-
 function clientReference(
   name: string,
   mod: string,
   bound?: readonly unknown[],
-): TestClientReference {
+): ClientReferenceValue {
   return defineClientReference({
     bound,
     deps: [],
     id: `${mod}#${name}`,
     mod,
     name,
-  }) as unknown as TestClientReference;
+  });
 }
 
 async function readUntilLength(reader: ReadableStreamDefaultReader<Uint8Array>, length: number) {

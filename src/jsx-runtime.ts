@@ -20,21 +20,38 @@ declare global {
 
 export type AttributeValue = string | number | boolean | null | undefined;
 export type Component<P extends object = JSXProps> = (props: P) => JSXChild;
-type ClientReferenceValue = {
-  readonly [clientReferenceMarker]: never;
+export type ClientReferenceValue<Argument = unknown> = {
+  bind(_this: unknown, ...bound: readonly unknown[]): ClientReferenceValue<Argument>;
+  readonly [clientReferenceMarker]: {
+    bivarianceHack(value: Argument): void;
+  }["bivarianceHack"];
 };
 type EventAttributeValue<EventType extends Event = Event> =
-  | ClientReferenceValue
+  | ClientReferenceValue<EventType>
   | { bivarianceHack(this: EventTarget, event: EventType): void }["bivarianceHack"]
   | {
       handleEvent(event: EventType): void;
     };
+type RefAttributeValue<ElementType extends Element = Element> =
+  | ClientReferenceValue<ElementType>
+  | { bivarianceHack(ref: ElementType): void }["bivarianceHack"];
 type KnownEventName = Extract<keyof GlobalEventHandlersEventMap, string>;
 type KnownEventAttributes = {
   [EventName in KnownEventName as `on${EventName}`]?:
     | AttributeValue
     | EventAttributeValue<GlobalEventHandlersEventMap[EventName]>
     | JSXChild;
+};
+type KnownIntrinsicElementName = keyof HTMLElementTagNameMap | keyof SVGElementTagNameMap;
+type IntrinsicElementFor<Name extends string> = Name extends keyof HTMLElementTagNameMap
+  ? Name extends keyof SVGElementTagNameMap
+    ? HTMLElementTagNameMap[Name] | SVGElementTagNameMap[Name]
+    : HTMLElementTagNameMap[Name]
+  : Name extends keyof SVGElementTagNameMap
+    ? SVGElementTagNameMap[Name]
+    : Element;
+type KnownIntrinsicElements = {
+  [Name in KnownIntrinsicElementName]: JSXProps<IntrinsicElementFor<Name>>;
 };
 export type JSXChild =
   | JSXElement
@@ -46,11 +63,12 @@ export type JSXChild =
   | PromiseLike<unknown>
   | readonly JSXChild[];
 
-export interface JSXProps extends KnownEventAttributes {
+export interface JSXProps<RefElement extends Element = Element> extends KnownEventAttributes {
   children?: JSXChild;
   innerHTML?: string;
+  ref?: RefAttributeValue<RefElement>;
   [property: `on${string}`]: AttributeValue | EventAttributeValue | JSXChild;
-  [property: string]: AttributeValue | EventAttributeValue | JSXChild;
+  [property: string]: AttributeValue | EventAttributeValue | RefAttributeValue | JSXChild;
 }
 
 export interface SuspenseProps {
@@ -1269,7 +1287,7 @@ export namespace JSX {
     key?: string;
   }
 
-  export interface IntrinsicElements {
+  export interface IntrinsicElements extends KnownIntrinsicElements {
     [elementName: string]: JSXProps;
   }
 }

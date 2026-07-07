@@ -10,6 +10,7 @@ export {
 export type {
   AttributeValue,
   ClientEvent,
+  ClientReferenceValue,
   Component,
   ErrorBoundaryProps,
   JSXChild,
