@@ -14,12 +14,12 @@ export default defineConfig(
         mode === "test" || mode === "benchmark"
           ? []
           : [
-              cloudflare({
-                viteEnvironment: { name: "ssr" },
-              }),
               fullstack({ serverHandler: false }),
               srvJsx(),
               devtoolsJson(),
+              cloudflare({
+                viteEnvironment: { name: "ssr" },
+              }),
             ],
       environments: {
         client: {
