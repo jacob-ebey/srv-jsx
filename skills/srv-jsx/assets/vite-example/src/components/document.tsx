@@ -14,11 +14,11 @@ export function Document({ children }: { children?: JSXChild }) {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {assets.css.map((asset) => (
-          <link nonce rel="stylesheet" href={asset.href} />
+          <link rel="stylesheet" href={asset.href} />
         ))}
-        {assets.entry ? <script nonce async type="module" src={assets.entry} /> : null}
+        {assets.entry ? <script async type="module" src={assets.entry} /> : null}
         {assets.js.map((asset) => (
-          <link nonce rel="modulepreload" href={asset.href} />
+          <link rel="modulepreload" href={asset.href} />
         ))}
       </head>
       <body>

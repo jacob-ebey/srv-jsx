@@ -119,10 +119,39 @@ location in the rendered tree. They are not user-provided. Pass
 `{ idPrefix: "..." }` to `renderToReadableStream()` to customize the generated
 name prefix.
 
-Pass `{ nonce: "..." }` to add a CSP nonce to inline scripts generated for
-client reference event handlers and refs. The same nonce is applied to rendered
-`<script nonce={true}>`, `<link nonce={true}>`, and `<style nonce={true}>`
-elements.
+Pass `{ nonce: "..." }` to add a CSP nonce to the inline scripts srv-jsx
+generates itself: client reference event handlers, refs, and
+`bootstrapScripts`/`bootstrapModules` (see below). This matches React's
+`renderToReadableStream()`/`renderToPipeableStream()` behavior, where `nonce`
+only applies to scripts React emits.
+
+`nonce` is a plain attribute everywhere else. srv-jsx never adds it to
+elements you author yourself, so if you want the same nonce value on your
+own `<script>`, `<link>`, or `<style>` tags, pass it explicitly, you already
+have the value in scope wherever you call `renderToReadableStream()`:
+
+```tsx
+const nonce = crypto.randomUUID();
+
+await renderToReadableStream(<style nonce={nonce}>{".hidden{display:none}"}</style>, { nonce });
+```
+
+Use `bootstrapScripts` and `bootstrapModules` to append `<script>` tags after
+the rendered document, aligned with React's options of the same names. Each
+URL is rendered with the configured nonce and a bare `async` attribute:
+
+```ts
+await renderToReadableStream(<App />, {
+  bootstrapScripts: ["/assets/app.js"],
+  bootstrapModules: ["/assets/app.mjs"],
+  nonce,
+});
+```
+
+```html
+<script src="/assets/app.js" nonce="..." async></script>
+<script type="module" src="/assets/app.mjs" nonce="..." async></script>
+```
 
 DOM elements can receive a client reference as `ref`. The runtime emits an
 inline script after the element and calls the loaded reference with that element.
@@ -157,12 +186,12 @@ renderToReadableStream(
 ): Promise<ReadableStream<Uint8Array>>
 ```
 
-Options include `encodeLoadReference`, `idPrefix`, `nonce`, `onError`,
-`prerender`, and `signal`. `onError(error)` is called for errors that happen
-after the shell has been flushed, and for errors that are caught by an
-`ErrorBoundary`. Unhandled errors while building the shell, including unhandled
-`prerender` errors, reject `renderToReadableStream()` before a stream is
-created.
+Options include `bootstrapModules`, `bootstrapScripts`, `encodeLoadReference`,
+`idPrefix`, `nonce`, `onError`, `prerender`, and `signal`. `onError(error)` is
+called for errors that happen after the shell has been flushed, and for
+errors that are caught by an `ErrorBoundary`. Unhandled errors while building
+the shell, including unhandled `prerender` errors, reject
+`renderToReadableStream()` before a stream is created.
 
 ## Development
 

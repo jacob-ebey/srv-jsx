@@ -87,6 +87,8 @@ export interface ClientEvent {
 }
 
 export interface RenderOptions {
+  bootstrapModules?: readonly string[];
+  bootstrapScripts?: readonly string[];
   encodeLoadReference?: (reference: ClientReference) => string;
   idPrefix?: string;
   nonce?: string;
@@ -355,6 +357,27 @@ class RenderContext {
     return this.nonce === undefined ? "" : ` nonce="${escapeAttribute(this.nonce)}"`;
   }
 
+  renderBootstrapScripts(
+    scripts: readonly string[] | undefined,
+    modules: readonly string[] | undefined,
+  ) {
+    let html = "";
+
+    if (scripts !== undefined) {
+      for (const src of scripts) {
+        html += `<script src="${escapeAttribute(src)}"${this.renderNonceAttribute()} async></script>`;
+      }
+    }
+
+    if (modules !== undefined) {
+      for (const src of modules) {
+        html += `<script type="module" src="${escapeAttribute(src)}"${this.renderNonceAttribute()} async></script>`;
+      }
+    }
+
+    return html;
+  }
+
   renderScript(content: string) {
     return `<script${this.renderNonceAttribute()}>${escapeScriptContent(content)}</script>`;
   }
@@ -564,6 +587,9 @@ export async function renderToReadableStream(
   void (async () => {
     try {
       await renderValue(value, context, queue, "0", context.createRootRenderState());
+      queue.write(
+        context.renderBootstrapScripts(options.bootstrapScripts, options.bootstrapModules),
+      );
       queue.flush();
       context.markShellReady();
       await drainPending(context, queue);
@@ -726,16 +752,6 @@ async function renderElement(
 
     if (isClientEventAttribute(name, value)) {
       clientEffects.push({ event: name.slice(2), kind: "event", reference: value });
-      continue;
-    }
-
-    if (
-      namespace === "html" &&
-      name === "nonce" &&
-      value === true &&
-      isNonceElement(node.tagName)
-    ) {
-      attributes += context.renderNonceAttribute();
       continue;
     }
 
@@ -1097,10 +1113,6 @@ function isVoidElement(name: string) {
 
 function isHoistableHeadElement(name: string) {
   return hoistableHeadElementNames.includes(` ${name} `);
-}
-
-function isNonceElement(name: string) {
-  return name === "script" || name === "link" || name === "style";
 }
 
 function hasRenderableChildren(value: JSXChild): boolean {

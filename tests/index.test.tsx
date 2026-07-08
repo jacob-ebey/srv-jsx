@@ -246,18 +246,47 @@ test("adds nonces to generated client reference event scripts", async () => {
   );
 });
 
-test("applies configured nonces to script, link, and style nonce attributes", async () => {
+test("nonce on script, link, and style elements is a plain pass-through attribute", async () => {
   const html = await renderToText(
     <>
-      <script nonce={true} src="/assets/app.js" />
-      <link nonce={true} rel="modulepreload" href="/assets/app.js" />
-      <style nonce={true}>{".hidden{display:none}"}</style>
+      <script nonce="explicit" src="/assets/app.js" />
+      <link nonce="explicit" rel="modulepreload" href="/assets/app.js" />
+      <style nonce="explicit">{".hidden{display:none}"}</style>
     </>,
-    { nonce: 'nonce"<value>' },
+    { nonce: "configured" },
   );
 
   expect(html).toBe(
-    '<script nonce="nonce&quot;&lt;value&gt;" src="/assets/app.js"></script><link nonce="nonce&quot;&lt;value&gt;" rel="modulepreload" href="/assets/app.js"><style nonce="nonce&quot;&lt;value&gt;">.hidden{display:none}</style>',
+    '<script nonce="explicit" src="/assets/app.js"></script><link nonce="explicit" rel="modulepreload" href="/assets/app.js"><style nonce="explicit">.hidden{display:none}</style>',
+  );
+});
+
+test("does not add a nonce attribute to user-authored elements automatically", async () => {
+  const html = await renderToText(<script src="/assets/app.js" />, { nonce: "configured" });
+
+  expect(html).toBe('<script src="/assets/app.js"></script>');
+});
+
+test("adds bootstrapScripts and bootstrapModules after the rendered tree with the configured nonce", async () => {
+  const html = await renderToText(<div>Hello</div>, {
+    bootstrapModules: ["/assets/module.js"],
+    bootstrapScripts: ["/assets/app.js"],
+    nonce: 'nonce"<value>',
+  });
+
+  expect(html).toBe(
+    '<div>Hello</div><script src="/assets/app.js" nonce="nonce&quot;&lt;value&gt;" async></script><script type="module" src="/assets/module.js" nonce="nonce&quot;&lt;value&gt;" async></script>',
+  );
+});
+
+test("bootstrapScripts and bootstrapModules omit the nonce attribute when none is configured", async () => {
+  const html = await renderToText(<div>Hello</div>, {
+    bootstrapModules: ["/assets/module.js"],
+    bootstrapScripts: ["/assets/app.js"],
+  });
+
+  expect(html).toBe(
+    '<div>Hello</div><script src="/assets/app.js" async></script><script type="module" src="/assets/module.js" async></script>',
   );
 });
 
@@ -288,6 +317,30 @@ test("streams Suspense placeholders and templates", async () => {
   const reader = stream.getReader();
 
   await expect(readChunk(reader)).resolves.toBe(suspenseShell);
+
+  deferred.resolve(<p>Hello, World!</p>);
+
+  await expect(readToEnd(reader)).resolves.toBe(
+    '<template for="srv-jsx-4kgorb"><p>Hello, World!</p></template>',
+  );
+});
+
+test("flushes bootstrapScripts and bootstrapModules as part of the shell, before streamed Suspense content", async () => {
+  const deferred = createDeferred<JSXChild>();
+  const stream = await renderToReadableStream(
+    <>
+      <div>
+        <Suspense fallback={<p>Loading...</p>}>{deferred.promise}</Suspense>
+      </div>
+      <p>More content that isn't delayed</p>
+    </>,
+    { bootstrapModules: ["/assets/module.js"], bootstrapScripts: ["/assets/app.js"] },
+  );
+  const reader = stream.getReader();
+
+  await expect(readChunk(reader)).resolves.toBe(
+    `${suspenseShell}<script src="/assets/app.js" async></script><script type="module" src="/assets/module.js" async></script>`,
+  );
 
   deferred.resolve(<p>Hello, World!</p>);
 
