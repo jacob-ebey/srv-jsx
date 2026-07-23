@@ -1,4 +1,4 @@
-import { Fragment, jsx } from "./jsx-runtime.ts";
+import { type JSX, Fragment, jsx } from "./index.ts";
 
-export { Fragment };
+export { type JSX, Fragment, jsx };
 export const jsxDEV = jsx;

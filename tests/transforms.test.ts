@@ -64,7 +64,7 @@ export default function DefaultButton() {
   );
 
   expect(result?.code).toBe(
-    `import { defineClientReference as __srv_jsx_define_client_reference } from "srv-jsx/jsx-runtime";
+    `import { defineClientReference as __srv_jsx_define_client_reference } from "srv-jsx";
 const __srv_jsx_client_reference_0 = __srv_jsx_define_client_reference({ id: "${referenceId("/assets/mod-a1b2c3.js", "Button")}", name: "Button", mod: "/assets/mod-a1b2c3.js", deps: ["/assets/helper-d4e5f6.js"] });
 const __srv_jsx_client_reference_1 = __srv_jsx_define_client_reference({ id: "${referenceId("/assets/mod-a1b2c3.js", "Renamed")}", name: "Renamed", mod: "/assets/mod-a1b2c3.js", deps: ["/assets/helper-d4e5f6.js"] });
 const __srv_jsx_client_reference_2 = __srv_jsx_define_client_reference({ id: "${referenceId("/assets/mod-a1b2c3.js", "default")}", name: "default", mod: "/assets/mod-a1b2c3.js", deps: ["/assets/helper-d4e5f6.js"] });
@@ -99,7 +99,7 @@ export function Page() {
     `const __srv_jsx_client_0 = __srv_jsx_define_client_reference({ id: "${referenceId("/assets/mod.js", "__srv_jsx_client_0")}", name: "__srv_jsx_client_0", mod: "/assets/mod.js", deps: [] });`,
   );
   expect(result?.code).toContain(
-    'import { defineClientReference as __srv_jsx_define_client_reference } from "srv-jsx/jsx-runtime";',
+    'import { defineClientReference as __srv_jsx_define_client_reference } from "srv-jsx";',
   );
   expect(result?.code).toContain("export { __srv_jsx_client_0 };");
   expect(result?.code).toContain("const Button = __srv_jsx_client_0;");

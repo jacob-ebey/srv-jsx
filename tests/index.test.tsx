@@ -834,8 +834,8 @@ const orderedSuspenseShell =
   '<?start name="srv-jsx-vxhwgy"><p>First loading</p><?end><?start name="srv-jsx-zubyhh"><p>Second loading</p><?end>';
 const secondTemplate = '<template for="srv-jsx-zubyhh"><p>Second resolved</p></template>';
 
-function Throws(): JSXChild {
-  throw new Error("boom");
+function Throws({ error }: { error?: Error }): JSXChild {
+  throw error ?? new Error("boom");
 }
 
 async function renderToText(value: JSXChild, options?: RenderOptions) {

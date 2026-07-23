@@ -51,7 +51,7 @@ type BindCapture = {
 
 const jsExtensions = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const clientReferenceHelperName = "__srv_jsx_define_client_reference";
-const clientReferenceHelperImport = `import { defineClientReference as ${clientReferenceHelperName} } from "srv-jsx/jsx-runtime";`;
+const clientReferenceHelperImport = `import { defineClientReference as ${clientReferenceHelperName} } from "srv-jsx";`;
 
 const ignoredAstKeys = new Set([
   "accessibility",
